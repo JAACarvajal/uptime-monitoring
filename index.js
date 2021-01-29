@@ -17,7 +17,7 @@ var server = http.createServer(function (req, res) {
 
     // Get the PATH
     var path = parsedURL.pathname; // untrimmed
-    var trimmedPath = path.replace(/^\/+|\/+$/g, ' ');
+    var trimmedPath = path.replace(/^\/+|\/+$/g, '');
 
     // Get query string as an object
     var queryStringObj = parsedURL.query;
@@ -47,17 +47,55 @@ var server = http.createServer(function (req, res) {
             headers : headers,
             payload : payload
         }
-
-        // Send response to the user
-        res.end('it works!');
-
-        // Log message to the server
+        
+        // Log request data to the server
         console.log('Request Data: ', reqData);
+
+        // Choose the handler
+        var chosenHandler = typeof(routes[reqData.path]) !== 'undefined' ? routes[reqData.path] : handlers.routeNotFound;
+
+        chosenHandler(reqData, function (statusCode, responseData) {
+
+            // Check if status code send by the server is a number for sensible defaults (some handlers do not have responseData or status codes)
+            statusCode = typeof(statusCode) == 'number' ? statusCode : 200;
+
+            // Check if payload send by the server is an object for sensible defaults (some handlers do not have responseData or status codes)
+            responseData = typeof(responseData) == 'object' ? responseData : {};
+
+            // Convert payload to string 
+            var responseDataString = JSON.stringify(responseData);
+
+            // Send response to the user
+            res.setHeader('Content-Type', 'application/json');
+            res.writeHead(statusCode);
+            res.end(responseDataString);
+
+            // Log response message to the server
+            console.log('Response Data: ', statusCode, responseDataString);
+        });
     });
 });
 
 // Set the server to listen on port 3000
 server.listen(3000, function () {
     console.log('Listening on port 3000');
-})
+});
+
+// Route handlers
+var handlers = {};
+
+// Handler for sample route
+handlers.sample = function (data, callback) {
+    callback(200, {'sample' : 'sample data'});
+};
+
+// Handler for non existing routes
+handlers.routeNotFound = function (data, callback) {
+    callback(404);
+};
+
+// Routes
+var routes = {
+    'sample' : handlers.sample
+}
 
